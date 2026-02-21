@@ -1,5 +1,5 @@
 <template>
-  <div>{{ time }}</div>
+  <div class="font-semibold font-heading">{{ time }}</div>
 </template>
 
 <script setup>

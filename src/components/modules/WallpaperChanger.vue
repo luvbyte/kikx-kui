@@ -8,7 +8,7 @@
       <div
         v-if="loaded"
         :key="currentPathVirtual"
-        class="flex flex-col gap-2 items-center bg-black/40 p-2 py-4"
+        class="flex flex-col gap-2 items-center bg-black/40 p-2 py-4 shadow-lg"
       >
         <div class="flex gap-2 items-center w-full">
           <!-- Path selector -->
@@ -30,7 +30,7 @@
           <input
             v-model="customUrl"
             placeholder="Image url"
-            class="input input-sm bg-transparent border-white focus:outline-none placeholder:opacity-60"
+            class="input input-sm bg-transparent border-white focus:outline-none"
           />
 
           <button @click="setBackgroundCustomUrl" class="btn btn-sm w-16">
@@ -241,7 +241,7 @@
     await renderImages();
   }
   function handleClose() {
-    // since state watches no need
+    // since state watches and auto saves no need
     // if (selectedImage.value) {
     // await muiConfig.save();
     // }

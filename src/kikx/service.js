@@ -1,6 +1,8 @@
 import { getUrl } from "./config";
 import { getClientID } from "./client";
 
+import { parseArgsAndKwargs } from "./utils"
+
 class Service {
   constructor(name) {
     this.serviceName = name;
@@ -106,4 +108,12 @@ export class SystemService extends Service {
       name,
       config
     });
+
+  func(name, ...args) {
+    const parsed = parseArgsAndKwargs(...args);
+    return this.clientFunc(name, {
+      args: parsed.args,
+      options: parsed.options
+    });
+  }
 }

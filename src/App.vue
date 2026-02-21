@@ -15,20 +15,25 @@
   import ControlCenter from "@/components/ControlCenter.vue";
 
   import App from "@/components/App.vue";
-  import Settings from "@/components/Settings.vue";
-
   import Bg from "@/components/Bg.vue";
 
   import WallpaperChanger from "@/components/modules/WallpaperChanger.vue";
+  import Settings from "@/components/modules/Settings.vue";
   import Loading from "@/components/Loading.vue";
 
-  import { client } from "@/kikx";
+  import Navbar from "@/components/Navbar.vue";
+  import RightStick from "@/components/RightStick.vue";
+
+  import { client, devLogin } from "@/kikx";
   import { getUrl } from "@/kikx/config";
 
   import { useUIConfig } from "@/stores/kikx";
   import { muiConfig } from "@/kikx";
 
-  const loaded = ref(false);
+  import { playSound } from "@/kikx/sound";
+
+  const loading = ref(true);
+  const connected = ref(false);
 
   // This MUI config
   const uiConfig = useUIConfig();
@@ -113,14 +118,6 @@
     }
   }
 
-  function onTopFrameSwipe(direction: string) {
-    if (direction === "up") {
-      showTopFrame.value = false;
-    } else if (direction === "left") {
-      showTopFrame.value = true;
-    }
-  }
-
   function onStatusbarSwipe(direction: string) {
     showAppsMenu.value = false;
     if (direction === "right") {
@@ -152,6 +149,22 @@
 
     showBottomFrame.value = !showBottomFrame.value;
     showAppsPanel.value = showBottomFrame.value;
+  }
+
+  // 0 - home, 1 - recents, 2 close
+  function onNavbarClick(btnIndex) {
+    if (btnIndex === 0) {
+      onStickBarSwipe("down");
+    } else if (btnIndex === 1) {
+      onStickBarSwipe("up");
+    } else if (btnIndex === 2) {
+      closeActiveApp();
+
+      // if not apps show home
+      if (runningApps.value.length <= 0) {
+        onStickBarSwipe("down");
+      }
+    }
   }
 
   /* ----------------------------------------------------------
@@ -208,6 +221,11 @@
     );
   }
 
+  function onBottomFrameLB() {
+    showBottomFrame.value = false;
+    showTopFrame.value = true;
+  }
+
   function moveIndex(arr: any[], index: number, next: boolean) {
     const last = arr.length - 1;
     if (last <= 0) return 0;
@@ -219,16 +237,6 @@
       : index === 0
         ? last
         : index - 1;
-  }
-
-  async function login(key: string) {
-    try {
-      const res = await fetch("http://localhost:8000/generate?key=" + key);
-      const data = await res.json();
-      document.cookie = `access_token=${data.access_token}`;
-    } catch (err) {
-      console.error("Login error:", err);
-    }
   }
 
   async function openApp(name: string, sudo: boolean = false) {
@@ -268,6 +276,8 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ app_id: app.id, client_id: client.clientID })
       });
+      // remove alerts
+      uiConfig.removeAppAlerts(app.id);
     } catch (err) {
       console.error("Close app failed:", err);
     }
@@ -283,29 +293,92 @@
     }
   }
 
-  watchDebounced(
-    () => uiConfig.state,
-    async () => {
-      await muiConfig.save();
-    },
-    {
-      deep: true,
-      debounce: 500, // wait 500ms after last change
-      maxWait: 2000 // optional: force run after 2s max
+  function appNotify(payload) {
+    console.log(payload);
+  }
+
+  function appAlert(payload) {
+    console.log(activeApp.value);
+    console.log(payload);
+
+    if (!uiConfig.state.isSilent) {
+      playSound("alert");
     }
-  );
+
+    uiConfig.addAppAlert(payload);
+  }
+
+  function onAlertClick(appID) {
+    showTopFrame.value = false;
+
+    const index = runningApps.value.findIndex(app => app.id === appID);
+
+    if (index !== -1) {
+      setActiveApp(index);
+    } else {
+      // TODO: DO something later :)
+      uiConfig.removeAppAlerts(appID);
+    }
+  }
+
+  async function loadConfigAndWatch() {
+    await muiConfig.load();
+    watchDebounced(
+      () => uiConfig.state,
+      async () => {
+        await muiConfig.save();
+      },
+      {
+        deep: true,
+        debounce: 500, // wait 500ms after last change
+        maxWait: 2000 // optional: force run after 2s max
+      }
+    );
+  }
 
   onBeforeMount(async () => {
     // Dev
-    await login("kikx");
+    await devLogin("kikx");
+
+    // Event bindings
+    client.on("ws:onclose", e => {
+      if (e.code === 1008) {
+        // unauthorized reload or show login screen
+        location.reload();
+      }
+      loading.value = true;
+    });
+
+    // Client reconnect
+    client.on("reconnected", () => {
+      loading.value = false;
+    });
+
+    // App closing by itself
+    client.on("app:close", app => {
+      try {
+        if (activeApp && activeApp.id === app.id) {
+          closeActiveApp();
+        }
+      } catch (e) {}
+    });
+
+    // notify event (old)
+    client.on("app:notify", payload => {});
+
+    // app alert event
+    client.on("app:alert", payload => appAlert(payload));
 
     client.run(async data => {
-      await muiConfig.load();
+      await loadConfigAndWatch();
 
       console.log("Client Event:", data);
 
-      loaded.value = true;
+      connected.value = true;
+      loading.value = false;
     });
+
+    // event bindings
   });
 
   onMounted(async () => {});
@@ -318,12 +391,12 @@
   >
     <!-- Loading -->
     <Transition name="fade">
-      <div v-if="!loaded" class="fixed z-[999] inset-0 fscreen bg-black/60">
+      <div v-if="loading" class="fixed z-[999] inset-0 fscreen bg-black/60">
         <Loading class="text-white" label="Loading" />
       </div>
     </Transition>
 
-    <Bg v-if="loaded" />
+    <Bg v-if="connected" />
 
     <!-- Top statusbar -->
     <Transition name="statusbar-slide">
@@ -337,7 +410,7 @@
     <!-- Main interactive frame -->
     <div v-swipe="onHomeSwipe" class="flex-1 relative">
       <!-- Apps menu overlay -->
-      <Transition name="slide-up">
+      <Transition name="fade-scale">
         <div
           v-if="showAppsMenu"
           @click="showAppsMenu = false"
@@ -349,7 +422,7 @@
 
       <!-- Running Apps Stack -->
       <div
-        v-show="showAppsPanel || showBottomFrame"
+        v-show="(showAppsPanel || showBottomFrame) && !showTopFrame"
         class="absolute w-full h-full bg-black/60 top-0 left-0 z-20 flex flex-col items-center"
       >
         <div
@@ -370,7 +443,12 @@
 
     <!-- Top / Control Center Frame -->
     <Transition name="slide">
-      <ControlCenter v-if="showTopFrame" :onTopFrameSwipe :showModule />
+      <ControlCenter
+        v-if="showTopFrame"
+        :close="() => (showTopFrame = false)"
+        :showModule
+        :onAlertClick
+      />
     </Transition>
 
     <!-- Bottom Frame -->
@@ -378,28 +456,28 @@
       <!-- Fullscreen frame -->
       <div
         v-if="showBottomFrame"
+        @click="closeBottomFrame"
         class="fixed z-30 fscreen inset-0 flex flex-col items-center justify-end pb-5"
       >
         <!-- Background swipe layer / control panel depends -->
         <div
           class="absolute inset-0 h-[80%]"
-          @click.self="closeBottomFrame"
           v-swipe="onBottomFrameSwipe"
         ></div>
 
         <!-- App Title -->
         <div
           v-if="activeApp"
-          class="w-64 bg-white/10 rounded-t-lg border-t truncate flex items-center justify-center opacity-80"
-          :class="isSudoApp ? 'text-error' : 'text-primary-content'"
+          class="w-64 bg-white/10 rounded-t-lg text-white border-t truncate flex items-center justify-center opacity-80"
+          :class="isSudoApp ? 'border-error' : 'border-white'"
         >
           {{ activeApp.manifest.title }}
         </div>
         <!-- App switcher -->
-        <div class="px-2 w-full flex items-center">
+        <div @click.stop class="px-2 w-full flex items-center">
           <button
-            @click="showTopFrame = true"
-            class="w-16 h-full rounded-l-full bg-info"
+            @click="onBottomFrameLB"
+            class="w-16 h-full rounded-l-full bg-info glass"
           ></button>
           <div
             @click.stop
@@ -428,47 +506,54 @@
           </div>
           <button
             @click="closeActiveApp"
-            class="w-16 h-full rounded-r-full bg-error flex items-center justify-center"
+            class="w-16 h-full rounded-r-full bg-error glass flex items-center justify-center"
           ></button>
         </div>
       </div>
     </Transition>
 
+    <!-- Navigation Bar -->
+    <Transition name="nav-slide">
+      <Navbar
+        v-if="
+          uiConfig.state.navbar &&
+          !showBottomFrame &&
+          !showTopFrame &&
+          !currentModule &&
+          !showAppsMenu
+        "
+        :onNavbarClick
+      />
+    </Transition>
+
     <!-- Bottom bubble Triggers -->
     <div
-      v-if="uiConfig.state.iScreen && !uiConfig.state.stickBar"
+      v-if="
+        uiConfig.state.iScreen &&
+        !uiConfig.state.stickBar &&
+        !uiConfig.state.navbar
+      "
       class="absolute bottom-0 right-0 z-[150] bg-white/10 w-12 h-12 rounded-tl-full"
       @click="onRightBubbleClick"
     ></div>
+
     <!-- swipe bubble stick -->
     <Transition name="slide-left">
-      <div
-        v-if="uiConfig.state.stickBar"
-        v-swipe="onStickBarSwipe"
-        class="fixed right-0 z-[160] bg-white/20 w-4 h-26 top-1/2 -translate-y-1/2 rounded-l-lg border border-white/60 border-r-0 opacity-80"
-      ></div>
+      <RightStick v-if="uiConfig.state.stickBar" :onStickBarSwipe />
     </Transition>
 
     <!-- Modules -->
-    <Transition name="slide-down">
-      <div v-if="currentModule">
-        <WallpaperChanger
-          v-if="currentModule === 'WallpaperChanger'"
-          :close="hideModule"
-        />
-      </div>
-    </Transition>
+    <div v-if="currentModule">
+      <WallpaperChanger
+        v-if="currentModule === 'WallpaperChanger'"
+        :close="hideModule"
+      />
+      <Settings v-else-if="currentModule === 'Settings'" :close="hideModule" />
+    </div>
   </div>
 </template>
 
-<style scoped>
-  .bg {
-    background-image: url("images/waifu.png");
-    background-size: cover;
-    background-repeat: no-repeat;
-    background-position: center; /* or center center */
-  }
-
+<style>
   /* ENTER — slide from right to left */
   .slide-enter-from {
     transform: translateX(100%);
@@ -527,5 +612,33 @@
   .statusbar-slide-leave-to {
     transform: translateY(-100%);
     opacity: 0;
+  }
+
+  /* ENTER (when becoming visible) */
+  .nav-slide-enter-from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+
+  .nav-slide-enter-active {
+    transition:
+      transform 0.3s ease,
+      opacity 0.3s ease;
+  }
+
+  .nav-slide-enter-to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  /* LEAVE (when closing — no effect) */
+  .nav-slide-leave-active {
+    transition: none;
+  }
+
+  .nav-slide-leave-from,
+  .nav-slide-leave-to {
+    transform: translateY(0);
+    opacity: 1;
   }
 </style>

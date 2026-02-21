@@ -1,5 +1,5 @@
 import { Client, getClientID } from "./client";
-import { getUrl, muiPath, defaultBackground } from "./config";
+import { getUrl, muiPath, defaultBackground, DEV } from "./config";
 
 import { FileSystemService, SystemService } from "./service";
 
@@ -11,14 +11,15 @@ import { useUIConfig } from "@/stores/kikx";
 
 import { z } from "zod";
 
+// Validation scheme
 const muiConfigSchema = z.object({
+  bg: z.string(),
+
   isSilent: z.boolean(),
   canToast: z.boolean(),
-  isFullScreen: z.boolean(),
-  stickBar: z.boolean(),
-  bg: z.string(),
   iScreen: z.boolean(),
-  fMode: z.boolean()
+  stickBar: z.boolean(),
+  navbar: z.boolean(),
 });
 
 const client = new Client();
@@ -82,5 +83,16 @@ const muiConfig = {
     console.log("Config saved: ", config);
   }
 };
+
+export async function devLogin(key) {
+  if (!DEV) return;
+  try {
+    const res = await fetch("http://localhost:8000/generate?key=" + key);
+    const data = await res.json();
+    document.cookie = `access_token=${data.access_token}`;
+  } catch (err) {
+    console.error("Login error:", err);
+  }
+}
 
 export { client, fs, system, muiConfig, fetchAppsList };

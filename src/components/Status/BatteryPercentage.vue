@@ -1,12 +1,12 @@
 <template>
   <div class="relative flex items-center justify-center gap-1">
-    <svg class="w-4 -rotate-90" viewBox="0 0 120 120">
+    <svg class="w-3.5 h-3.5 -rotate-90" viewBox="0 0 120 120">
       <!-- Background -->
       <circle
         cx="60"
         cy="60"
         r="54"
-        stroke-width="10"
+        stroke-width="14"
         fill="none"
         class="stroke-gray-200"
       />
@@ -16,7 +16,7 @@
         cx="60"
         cy="60"
         r="54"
-        stroke-width="10"
+        stroke-width="14"
         fill="none"
         stroke-linecap="round"
         :class="batteryLevel < 20 ? 'stroke-red-500' : 'stroke-green-500'"
@@ -26,7 +26,7 @@
       />
     </svg>
 
-    <div class="font-bold">{{ batteryLevel }}%</div>
+    <div class="font-semibold font-heading">{{ batteryLevel }}%</div>
   </div>
 </template>
 

@@ -196,14 +196,6 @@ class Client {
       console.warn("Cannot send. WebSocket not open.");
     }
   }
-
-  func(name, ...args) {
-    const parsed = parseArgsAndKwargs(...args);
-    return this.system.clientFunc(name, {
-      args: parsed.args,
-      options: parsed.options
-    });
-  }
 }
 
 export { Client, getClientID };
