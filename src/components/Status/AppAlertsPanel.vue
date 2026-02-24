@@ -43,6 +43,10 @@
     };
   }
 
+  const getAlertMessage = msg => {
+    return Array.isArray(msg) ? msg.join(" ") : msg;
+  };
+
   // Move to next alert
   function goNext() {
     const alert = currentAlert.value;
@@ -86,7 +90,7 @@
       />
       <h1 v-if="false" class="font-bold">{{ currentAlert.title }}</h1>
       <p>
-        {{ currentAlert.msg }}
+        {{ getAlertMessage(currentAlert.msg) }}
       </p>
     </div>
   </div>

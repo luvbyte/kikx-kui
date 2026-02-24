@@ -1,7 +1,7 @@
 <template>
   <div
     @click.self="handleClose"
-    class="fixed z-20 inset-0 fscreen flex flex-col justify-between text-white"
+    class="fscreen flex flex-col justify-between text-white"
   >
     <!-- Top bar -->
     <Transition name="slide-down" mode="out-in">
@@ -94,11 +94,13 @@
 
   import { getImageUrl, defaultBackground } from "@/kikx/config";
 
-  import { fs, muiConfig } from "@/kikx";
+  import { getFS, muiConfig } from "@/kikx";
 
   import { useUIConfig } from "@/stores/kikx";
 
   const props = defineProps(["close"]);
+
+  const fs = getFS();
 
   const uiConfig = useUIConfig();
 
@@ -168,6 +170,8 @@
 
   // Delete Image
   async function handleDeleteSelectedImage() {
+    error.value = "";
+  
     if (!currentPath.value.canUpdate) return;
     if (!selectedImage.value) {
       error.value = "No image selected.";
@@ -189,6 +193,8 @@
 
   // Upload Image
   async function handleImageUpload(event) {
+    error.value = "";
+  
     if (!currentPath.value.canUpdate) return;
 
     const file = event.target.files[0];
@@ -221,6 +227,8 @@
 
   // Custum URL
   function setBackgroundCustomUrl() {
+    error.value = "";
+  
     if (customUrl.value.length <= 0) return;
 
     const test = new Image();

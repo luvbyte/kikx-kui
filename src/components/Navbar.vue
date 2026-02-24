@@ -1,12 +1,13 @@
 <template>
   <div
+    v-if="show"
     class="w-full h-10 flex items-center justify-stretch"
     :class="getAppTheme(theme)"
   >
     <!-- Recents -->
     <button
       @click="onNavbarClick(1)"
-      class="w-1/3 flex justify-center items-center p-1 active:bg-white/60 rounded-lg transition duration-300"
+      class="w-1/3 flex justify-center items-center p-1 active:bg-white/20 rounded-lg transition duration-300"
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -23,7 +24,7 @@
     <!-- Home -->
     <button
       @click="onNavbarClick(0)"
-      class="w-1/3 p-1 flex justify-center items-center active:bg-white/60 rounded-lg transition duration-300"
+      class="w-1/3 p-1 flex justify-center items-center active:bg-white/20 rounded-lg transition duration-300"
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -41,7 +42,7 @@
     <button
       v-if="isKeyboardOpen"
       @click="closeKeyboard"
-      class="w-1/3 p-1 flex justify-center items-center active:bg-white/60 rounded-lg transition duration-300"
+      class="w-1/3 p-1 flex justify-center items-center active:bg-white/20 rounded-lg transition duration-300"
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -82,11 +83,15 @@
 
   import { getAppTheme } from "@/kikx/style";
 
+  import { ref } from "vue";
+
   defineProps(["onNavbarClick", "theme"]);
 
-  const { isKeyboardOpen } = useKeyboard();
+  const { isKeyboardOpen, closeKeyboard } = useKeyboard();
 
-  function closeKeyboard() {
-    document.activeElement.blur();
-  }
+  const show = ref(false);
+
+  setTimeout(() => {
+    show.value = true;
+  }, 300);
 </script>

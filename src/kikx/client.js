@@ -7,24 +7,26 @@ import {
 } from "./utils";
 
 import { wsUrl } from "./config";
+import { FileSystemService, SystemService } from "./service";
 
 // Client ID - variables
-let clientID = null;
-const getClientID = () => {
-  return clientID;
-};
 
 class Client {
   constructor() {
-    this.clientID = clientID; // global
+    this.clientID = null; // global
     this.eventCallbacks = {};
     this.ws = null;
+
+    this.fs = new FileSystemService(this);
+    this.system = new SystemService(this);
 
     // Auto-reconnect
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
     this.reconnectDelay = 1000; // ms
     this._reconnectTimer = null;
+
+    this._loggedOut = false;
 
     // Heartbeat
     // this.heartbeatDelay = 3000; // 3 seconds
@@ -41,7 +43,8 @@ class Client {
 
     window.addEventListener("app:exit", async () => {
       // app exit
-      await this.system.request("info/session/close/" + clientID, "POST");
+      await this._logout();
+      // await this.system.request("close-client", "POST");
     });
 
     // Browser tab focus
@@ -68,6 +71,8 @@ class Client {
   _connect() {
     if (this.ws) return;
 
+    if (this._loggedOut) throw Error("Cant connect since client logged out");
+
     const url = `${wsUrl}/client?client_id=${this.clientID}`;
     console.log("Connecting to WebSocket:", url);
 
@@ -84,7 +89,6 @@ class Client {
         const message = JSON.parse(e.data);
         if (message.event === "connected") {
           this.clientID = message.payload.client_id;
-          clientID = message.payload.client_id;
         }
         if (message.event) this._callEvent(message.event, message.payload);
       } catch (err) {
@@ -196,6 +200,20 @@ class Client {
       console.warn("Cannot send. WebSocket not open.");
     }
   }
+  async _logout() {
+    this._loggedOut = true;
+    if (this.ws) this.ws.close();
+    // send logout request
+    return await this.system.request("client-logout", "POST");
+  }
+
+  async sendAppEvent(event, appID, payload) {
+    await this.system.request("client-app-event", "POST", {
+      app_id: appID,
+      event,
+      payload
+    });
+  }
 }
 
-export { Client, getClientID };
+export { Client };

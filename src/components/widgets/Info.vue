@@ -98,10 +98,12 @@
 <script setup>
   import { ref, onBeforeMount, onUnmounted } from "vue";
 
-  import { system } from "@/kikx";
+  import { getSystem } from "@/kikx";
 
   import Loading from "@/components/Loading.vue";
   import TimeStampRelative from "@/components/utils/TimeStampRelative.vue";
+
+  const system = getSystem();
 
   const info = ref(null);
   const loading = ref(true);

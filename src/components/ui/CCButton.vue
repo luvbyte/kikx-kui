@@ -36,7 +36,7 @@
 
 <template>
   <button
-    class="btn btn-xl btn-square transition-all duration-600 flex items-center justify-center"
+    class="btn btn-lg btn-square transition-all duration-600 flex items-center justify-center"
     :class="value ? 'bg-white text-secondary' : 'bg-white/40 text-black/80'"
     @click="toggle"
   >

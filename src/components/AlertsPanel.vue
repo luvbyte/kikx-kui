@@ -100,11 +100,11 @@
 <template>
   <div
     @click.stop
-    class="flex-1 flex flex-col rounded-2xl border-2 border-white/40 bg-white/20 shadow-2xl overflow-hidden"
+    class="flex-1 flex flex-col rounded-2xl border-2 border-white/60 bg-white/20 overflow-hidden"
   >
     <!-- Header -->
     <div
-      class="px-4 py-1 border-b border-white/20 bg-pink-400/80 flex justify-between items-center shadow-lg"
+      class="px-2 py-1 border-b border-white/20 bg-pink-400/80 flex justify-between items-center shadow-lg"
     >
       <div class="flex gap-2 items-center justify-center p-2">
         <h1 class="text-white font-semibold tracking-wide">Alerts</h1>
@@ -149,12 +149,12 @@
     <TransitionGroup
       name="alert"
       tag="div"
-      class="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-hide scroll-smooth"
+      class="flex-1 overflow-y-auto p-2 space-y-3 scrollbar-hide scroll-smooth"
     >
       <div
         v-for="appAlert in sortedAlerts"
         :key="appAlert.uid"
-        class="relative flex items-start gap-2 p-3 bg-white/80 border-white/40 rounded-xl border-2 shadow-lg transition-all duration-300"
+        class="relative flex items-start gap-2 p-3 bg-white/80 border-white/60 rounded-xl border-2 shadow-lg transition-all duration-300"
         :style="
           swiping === appAlert.uid
             ? {
@@ -188,8 +188,8 @@
           <!-- Header -->
           <div class="flex items-start justify-between gap-2">
             <div class="flex gap-1 items-center">
-              <h1 class="font-semibold leading-tight truncate">
-                {{ appAlert.title || "Notification" }}
+              <h1 class="max-w-32 font-semibold leading-tight truncate">
+                {{ appAlert.title }}
               </h1>
               <div class="flex items-center justify-center">
                 <!-- Success icon -->
@@ -266,11 +266,11 @@
           </div>
 
           <!-- Message -->
-          <div class="relative text-sm transition-all duration-600">
+          <div class="relative text-sm">
             <div
               :class="[
                 'whitespace-pre-line w-[85%] font-medium',
-                !expandedAlerts.has(appAlert.uid) ? 'line-clamp-1' : ''
+                !expandedAlerts.has(appAlert.uid) ? 'line-clamp-2' : ''
               ]"
             >
               <template v-if="Array.isArray(appAlert.msg)">

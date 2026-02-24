@@ -9,63 +9,84 @@
   } from "vue";
   import { watchDebounced } from "@vueuse/core";
 
-  import AppsMenu from "@/components/AppsMenu.vue";
-  import Statusbar from "@/components/Status/Statusbar.vue";
+  import { getAppTheme } from "@/kikx/style";
 
+  import Bg from "@/components/Bg.vue";
+  import App from "@/components/App.vue";
+  import Navbar from "@/components/Navbar.vue";
+  import Loading from "@/components/Loading.vue";
+  import RightStick from "@/components/RightStick.vue";
   import ControlCenter from "@/components/ControlCenter.vue";
 
-  import App from "@/components/App.vue";
-  import Bg from "@/components/Bg.vue";
+  import Statusbar from "@/components/Status/Statusbar.vue";
 
-  import WallpaperChanger from "@/components/modules/WallpaperChanger.vue";
+  import HomeScreen from "@/components/HomeScreen.vue";
+
+  import Logout from "@/components/modules/Logout.vue";
   import Settings from "@/components/modules/Settings.vue";
-  import Loading from "@/components/Loading.vue";
+  import WallpaperChanger from "@/components/modules/WallpaperChanger.vue";
 
-  import Navbar from "@/components/Navbar.vue";
-  import RightStick from "@/components/RightStick.vue";
-
-  import { client, devLogin } from "@/kikx";
   import { getUrl } from "@/kikx/config";
-
-  import { useUIConfig } from "@/stores/kikx";
-  import { muiConfig } from "@/kikx";
+  import { useClient, devLogin, muiConfig } from "@/kikx";
 
   import { playSound } from "@/kikx/sound";
 
-  const loading = ref(true);
-  const connected = ref(false);
+  import { useUIConfig } from "@/stores/kikx";
+  import { useKeyboard } from "@/composables/useKeyboard";
+  import { useRunningApps } from "@/composables/useRunningApps";
 
-  // This MUI config
+  // ------------------ STATE
+  // Kikx Client
+  const client = useClient();
   const uiConfig = useUIConfig();
 
-  const showAppsMenu = ref(false);
-  const showAppsPanel = ref(false);
+  // Loading, connected state
+  const connecting = ref(true);
+  const connected = ref(false);
+
+  // home, app, app-control, control
+  const currentScreen = ref("home");
+  const lastScreen = ref("home");
 
   const currentModule = ref(null);
 
-  const showTopFrame = ref(false);
+  const {
+    runningApps,
+    activeAppIndex,
+    activeApp,
+    setActiveApp,
+    switchAppLeft,
+    switchAppRight,
+    openApp,
+    closeApp,
+    closeAppById
+  } = useRunningApps(client, uiConfig, changeScreen);
+  const { isKeyboardOpen, closeKeyboard } = useKeyboard();
 
-  const showBottomFrame = ref(false);
+  // ------------------ Utils
+  // Change active screen
+  function changeScreen(name) {
+    lastScreen.value = currentScreen.value;
+    currentScreen.value = name;
+  }
 
-  const runningApps = ref<any[]>([]);
-  const activeAppIndex = ref<number>(-1);
-
+  // Show Module
   function showModule(name) {
-    showAppsMenu.value = false;
-    showTopFrame.value = false;
-
-    showBottomFrame.value = false;
+    if (["control", "app-control"].includes(currentScreen.value)) {
+      changeScreen("home");
+    }
 
     currentModule.value = name;
   }
 
-  function hideModule() {
+  function closeModule() {
     currentModule.value = false;
   }
 
+  // Scroll Tab To App
   function scrollTabToApp(index: number) {
     if (index < 0) return;
-    if (!showBottomFrame.value) return;
+    if (currentScreen.value !== "app-control") return;
     if (!runningApps.value[index]) return;
 
     const el = document.getElementById(
@@ -81,253 +102,150 @@
     }
   }
 
+  // hidden screens for navbar
+  const appScreens = ["app-control", "app"];
+  const navbarHiddenScreens = ["app-control", "control"];
+
+  const canShowNavbar = computed(
+    () =>
+      uiConfig.state.navbar &&
+      !currentModule.value &&
+      (isKeyboardOpen.value ||
+        !navbarHiddenScreens.includes(currentScreen.value))
+  );
+
+  const canShowFallbackTrigger = computed(
+    () =>
+      !uiConfig.state.navbar &&
+      !uiConfig.state.stickBar &&
+      !navbarHiddenScreens.includes(currentScreen.value)
+  );
+
+  // ------------------ Watchers
+  // Auto switch app if activeAppIndex change
   watch(activeAppIndex, async indexNew => {
     await nextTick();
     scrollTabToApp(indexNew);
   });
 
-  watch(showBottomFrame, async newValue => {
+  watch(currentScreen, async newValue => {
     await nextTick();
-    if (newValue) scrollTabToApp(activeAppIndex.value);
+    if (newValue === "app-control") {
+      scrollTabToApp(activeAppIndex.value);
+    }
   });
 
-  /* ----------------------------------------------------------
-   Swipe handlers
-  ---------------------------------------------------------- */
-  function onHomeSwipe(direction: string) {
+  // ------------------ Event Handlers
+  function onAppControlSwipe(direction) {
     if (direction === "up") {
-      showAppsMenu.value = true;
+      changeScreen("home");
+    }
+    if (direction === "down") {
+      changeScreen("app");
     } else if (direction === "left") {
-      showTopFrame.value = true;
-      showAppsMenu.value = false;
+      switchAppLeft();
     } else if (direction === "right") {
-      showAppsMenu.value = false;
-      showBottomFrame.value = true;
+      switchAppRight();
     }
   }
 
-  function onBottomFrameSwipe(direction: string) {
-    if (direction === "up") {
-      minimizeApp(true);
-    } else if (activeApp.value) {
-      if (direction === "left") {
-        swithAppLeft();
-      } else if (direction === "right") {
-        swithAppRight();
-      }
+  function onAppControlClick() {
+    if (runningApps.value.length > 0) {
+      changeScreen("app");
+    } else {
+      changeScreen("home");
     }
   }
 
-  function onStatusbarSwipe(direction: string) {
-    showAppsMenu.value = false;
-    if (direction === "right") {
-      showAppsPanel.value = true;
-      showBottomFrame.value = true;
-    } else if (direction === "left") {
-      showTopFrame.value = true;
-    } else if (direction === "down") {
-      showTopFrame.value = true;
+  function onAppScreenClick() {
+    if (runningApps.value.length <= 0) {
+      changeScreen("home");
     }
   }
 
   function onStickBarSwipe(direction) {
     if (direction === "up") {
-      showTopFrame.value = false;
-      showAppsMenu.value = false;
-
-      showAppsPanel.value = true;
-      showBottomFrame.value = true;
+      const screen =
+        currentScreen.value === "app-control" ? "app" : "app-control";
+      changeScreen(screen);
     } else if (direction === "down") {
-      showAppsPanel.value = false;
-      showBottomFrame.value = false;
-      showTopFrame.value = false;
+      changeScreen("home");
     }
   }
-  function onRightBubbleClick() {
-    showTopFrame.value = false;
-    showAppsMenu.value = false;
 
-    showBottomFrame.value = !showBottomFrame.value;
-    showAppsPanel.value = showBottomFrame.value;
+  // On bottom fallback bubble click
+  function onFallbackBubbleClick() {
+    changeScreen("app-control");
   }
 
   function onControlCenterClose() {
-    showTopFrame.value = false;
-    if (runningApps.value.length <= 0) {
-      onStickBarSwipe("down");
+    changeScreen(lastScreen.value);
+  }
+
+  function onAppControlBtnClick(btnIndex) {
+    if (btnIndex === 1) {
+      closeActiveApp();
+    } else if (btnIndex === 0) {
+      changeScreen("control");
     }
   }
 
-  // 0 - home, 1 - recents, 2 close
+  function onAppControlIconClick(index) {
+    if (activeAppIndex.value === index) {
+      changeScreen("app");
+    } else {
+      setActiveApp(index);
+    }
+  }
+
+  // 0 - home, 1 - app-control, 2 close (depends)
   function onNavbarClick(btnIndex) {
     if (btnIndex === 0) {
-      onStickBarSwipe("down");
+      changeScreen("home");
     } else if (btnIndex === 1) {
-      onStickBarSwipe("up");
-    } else if (btnIndex === 2) {
-      // if user
-      if (!showAppsPanel.value) return;
-
+      changeScreen("app-control");
+    } else if (btnIndex === 2 && currentScreen.value !== "home") {
       closeActiveApp();
-
-      // If no apps then show home
-      if (runningApps.value.length <= 0) {
-        onStickBarSwipe("down");
-      }
     }
   }
 
-  /* ----------------------------------------------------------
-   Utility functions
-  ---------------------------------------------------------- */
-  const activeApp = computed(() => {
-    return runningApps.value[activeAppIndex.value];
-  });
-
+  // ------------------ App Functions
+  // if activa app is sudo
   const isSudoApp = computed(() => {
-    return activeApp.value && activeApp.value.isSudo && showAppsPanel.value;
+    return activeApp.value && appScreens.includes(currentScreen.value)
+      ? activeApp.value.isSudo
+      : false;
   });
 
+  // Active app theme
   const activeAppTheme = computed(() => {
-    if (activeApp.value && showAppsPanel.value) {
-      return activeApp.value.manifest.theme;
-    }
-    return "default";
+    // only show when screen is control & app-control
+    return activeApp.value && appScreens.includes(currentScreen.value)
+      ? activeApp.value.manifest.theme
+      : "default";
   });
 
-  function closeBottomFrame() {
-    showBottomFrame.value = false;
-    if (activeAppIndex.value < 0) {
-      showAppsPanel.value = false;
-    }
-  }
-
-  function setActiveApp(index: number) {
-    showAppsPanel.value = true;
-    activeAppIndex.value = index;
-  }
-
+  // close active app if found
   function closeActiveApp() {
     if (!activeApp.value) return;
     closeApp(activeAppIndex.value);
   }
 
-  // Minimize app and show appsMenu if true
-  function minimizeApp(showMenu = false) {
-    showAppsPanel.value = false;
-    showBottomFrame.value = false;
-
-    showAppsMenu.value = showMenu;
-  }
-
-  // Switch to left app
-  function swithAppLeft() {
-    activeAppIndex.value = moveIndex(
-      runningApps.value,
-      activeAppIndex.value,
-      true
-    );
-  }
-
-  // Switch to right app
-  function swithAppRight() {
-    activeAppIndex.value = moveIndex(
-      runningApps.value,
-      activeAppIndex.value,
-      false
-    );
-  }
-
-  function onBottomFrameLB() {
-    showBottomFrame.value = false;
-    showTopFrame.value = true;
-  }
-
-  function moveIndex(arr: any[], index: number, next: boolean) {
-    const last = arr.length - 1;
-    if (last <= 0) return 0;
-
-    return next
-      ? index === last
-        ? 0
-        : index + 1
-      : index === 0
-        ? last
-        : index - 1;
-  }
-
-  async function openApp(name: string, sudo: boolean = false) {
-    showAppsMenu.value = false;
-
-    try {
-      const res = await fetch(getUrl("/open-app"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name,
-          client_id: client.clientID,
-          sudo
-        })
-      });
-
-      const data = await res.json();
-
-      runningApps.value.push(data);
-      activeAppIndex.value = runningApps.value.length - 1;
-
-      showAppsPanel.value = true;
-    } catch (err) {
-      console.error("Open app failed:", err);
-    }
-  }
-
-  async function closeApp(index: number) {
-    const app = runningApps.value[index];
-    if (!app) return;
-
-    runningApps.value.splice(index, 1);
-
-    try {
-      await fetch(getUrl("/close-app"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ app_id: app.id, client_id: client.clientID })
-      });
-      // remove alerts
-      uiConfig.removeAppAlerts(app.id);
-    } catch (err) {
-      console.error("Close app failed:", err);
-    }
-
-    // Fix active index
-    if (index < activeAppIndex.value) {
-      activeAppIndex.value--;
-    } else if (index === activeAppIndex.value) {
-      activeAppIndex.value = Math.min(
-        activeAppIndex.value,
-        runningApps.value.length - 1
-      );
-    }
-  }
-
-  function appNotify(payload) {
-    console.log(payload);
-  }
-
+  // On app alert
   function appAlert(payload) {
-    console.log(activeApp.value);
-    console.log(payload);
-
     if (!uiConfig.state.isSilent) {
       playSound("alert");
     }
 
-    uiConfig.addAppAlert(payload);
+    // Only toast alert if its active (backend checks already)
+    const index = runningApps.value.findIndex(app => app.id === payload.id);
+    if (index !== -1) {
+      uiConfig.addAppAlert(payload);
+    }
   }
 
+  // On app alert click
   function onAlertClick(appAlert) {
-    showTopFrame.value = false;
-
     // Remove alert
     uiConfig.removeAppAlert(appAlert.uid);
 
@@ -335,11 +253,15 @@
 
     if (index !== -1) {
       setActiveApp(index);
+      changeScreen("app");
+      // Sending signal to app
+      client.sendAppEvent("alert:click", appAlert.id, appAlert.uid);
     } else {
-      // TODO: DO something later :)
+      changeScreen("home");
     }
   }
 
+  // Load config state and watch for changes
   async function loadConfigAndWatch() {
     await muiConfig.load();
 
@@ -357,50 +279,43 @@
     );
   }
 
+  // On before mount
   onBeforeMount(async () => {
-    // Dev
+    // Dev - test login wont work in prod
     await devLogin("kikx");
 
     // Event bindings
     client.on("ws:onclose", e => {
       if (e.code === 1008) {
-        // unauthorized reload or show login screen
+        // unauthorized then reload
         location.reload();
       }
-      loading.value = true;
+      connecting.value = true;
     });
 
     // Client reconnect
     client.on("reconnected", () => {
-      loading.value = false;
+      connecting.value = false;
     });
 
     // App closing by itself
     client.on("app:close", app => {
-      try {
-        if (activeApp.value && activeApp.value.id === app.id) closeActiveApp();
-      } catch (_) {}
+      closeAppById(app.id);
     });
-
-    // notify event (old)
-    client.on("app:notify", payload => {});
 
     // app alert event
     client.on("app:alert", payload => appAlert(payload));
 
     client.run(async data => {
+      // load config and watch
       await loadConfigAndWatch();
 
       console.log("Client Event:", data);
 
       connected.value = true;
-      loading.value = false;
+      connecting.value = false;
     });
-
-    // event bindings
   });
-
-  onMounted(async () => {});
 </script>
 
 <template>
@@ -410,152 +325,163 @@
   >
     <!-- Loading -->
     <Transition name="fade">
-      <div v-if="loading" class="fixed z-[999] inset-0 fscreen bg-black/60">
+      <div v-if="connecting" class="fixed z-[999] inset-0 fscreen bg-black/60">
         <Loading class="text-white" label="Loading" />
       </div>
     </Transition>
 
+    <!-- Background layer -->
     <Bg v-if="connected" />
 
     <!-- Top statusbar -->
     <Transition name="statusbar-slide">
       <Statusbar
-        v-if="!showBottomFrame && !uiConfig.state.iScreen && !currentModule"
+        v-if="!uiConfig.state.iScreen && !currentModule"
         :isSudoApp
         :theme="activeAppTheme"
-        :onStatusbarSwipe
       />
     </Transition>
 
-    <!-- Main interactive frame -->
-    <div v-swipe="onHomeSwipe" class="flex-1 relative">
+    <!-- Screens -->
+    <div class="flex-1 relative">
       <!-- Apps menu overlay -->
-      <Transition name="fade-scale">
-        <div
-          v-if="showAppsMenu"
-          @click="showAppsMenu = false"
-          class="absolute w-full h-full bg-black/60 top-0 left-0 overflow-y-auto z-30 pt-4"
-        >
-          <AppsMenu :openApp="openApp" />
-        </div>
+      <HomeScreen v-if="currentScreen === 'home'" :openApp :changeScreen />
+
+      <Transition name="fade">
+        <ControlCenter
+          v-if="currentScreen === 'control'"
+          :close="onControlCenterClose"
+          :showModule
+          :onAlertClick
+        />
       </Transition>
 
       <!-- Running Apps Stack -->
       <div
-        v-show="(showAppsPanel || showBottomFrame) && !showTopFrame"
-        class="absolute w-full h-full bg-black/60 top-0 left-0 z-20 flex flex-col items-center"
+        v-show="currentScreen === 'app' || currentScreen === 'app-control'"
+        class="absolute fscreen inset-0 z-20 flex flex-col items-center"
+        :class="getAppTheme(activeAppTheme)"
       >
         <div
-          class="w-full transition-scale duration-200"
-          :class="[showBottomFrame ? 'h-[85%]' : 'h-full']"
+          @click.self="onAppScreenClick"
+          class="w-full flex-1 overflow-hidden transition-all duration-300"
         >
           <App
             v-for="(app, index) in runningApps"
             :key="app.id"
-            class="w-full h-full overflow-hidden"
+            class="fscreen overflow-hidden"
             v-show="activeAppIndex === index && activeAppIndex !== -1"
             :app="app"
             :closeApp="() => closeApp(index)"
           />
         </div>
+
+        <!-- AppsControl -->
+        <Transition name="app-control">
+          <div
+            v-show="currentScreen === 'app-control' && !isKeyboardOpen"
+            class="w-full flex flex-col overflow-hidden"
+          >
+            <!-- Control Panel -->
+            <div
+              v-swipe="onAppControlSwipe"
+              @click="onAppControlClick"
+              class="h-10 flex items-center justify-center"
+            >
+              <!-- App title -->
+              <div
+                v-if="activeApp"
+                class="flex justify-center items-center gap-1 bg-white/10 border-t border-white/40 p-2 w-1/2 rounded-t-lg"
+              >
+                <svg
+                  v-if="isSudoApp"
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    fill="currentColor"
+                    d="m16 7.58l-5.5-2.4L5 7.58v3.6c0 3.5 2.33 6.74 5.5 7.74c.25-.08.49-.2.73-.3c-.15-.51-.23-1.06-.23-1.62c0-2.97 2.16-5.43 5-5.91z"
+                    opacity="0.3"
+                  />
+                  <path
+                    fill="currentColor"
+                    d="M17 13c-2.21 0-4 1.79-4 4s1.79 4 4 4s4-1.79 4-4s-1.79-4-4-4m0 1.38c.62 0 1.12.51 1.12 1.12s-.51 1.12-1.12 1.12s-1.12-.51-1.12-1.12s.5-1.12 1.12-1.12m0 5.37c-.93 0-1.74-.46-2.24-1.17c.05-.72 1.51-1.08 2.24-1.08s2.19.36 2.24 1.08c-.5.71-1.31 1.17-2.24 1.17"
+                    opacity="0.3"
+                  />
+                  <circle cx="17" cy="15.5" r="1.12" fill="currentColor" />
+                  <path
+                    fill="currentColor"
+                    d="M18 11.09V6.27L10.5 3L3 6.27v4.91c0 4.54 3.2 8.79 7.5 9.82c.55-.13 1.08-.32 1.6-.55A5.97 5.97 0 0 0 17 23c3.31 0 6-2.69 6-6c0-2.97-2.16-5.43-5-5.91M11 17c0 .56.08 1.11.23 1.62c-.24.11-.48.22-.73.3c-3.17-1-5.5-4.24-5.5-7.74v-3.6l5.5-2.4l5.5 2.4v3.51c-2.84.48-5 2.94-5 5.91m6 4c-2.21 0-4-1.79-4-4s1.79-4 4-4s4 1.79 4 4s-1.79 4-4 4"
+                  />
+                  <path
+                    fill="currentColor"
+                    d="M17 17.5c-.73 0-2.19.36-2.24 1.08c.5.71 1.32 1.17 2.24 1.17s1.74-.46 2.24-1.17c-.05-.72-1.51-1.08-2.24-1.08"
+                  />
+                </svg>
+                <h1 class="opacity-80">
+                  {{ activeApp.manifest.title }}
+                </h1>
+              </div>
+            </div>
+            <!-- Apps Capsule -->
+            <div class="px-2 pb-2 w-full flex items-center">
+              <button
+                @click="onAppControlBtnClick(0)"
+                class="w-16 h-full rounded-l-full bg-info glass"
+              ></button>
+              <!-- Middle Panel -->
+              <div
+                class="flex-1 h-16 border border-white/20 bg-white/20 shadow-lg px-2 gap-1 flex items-center whitespace-nowrap overflow-x-auto scrollbar-hide"
+              >
+                <div
+                  v-if="activeAppIndex < 0"
+                  class="h-full w-full flex items-center justify-center text-white opacity-60"
+                >
+                  No active apps
+                </div>
+                <!-- Running apps list -->
+                <div
+                  v-for="(app, index) in runningApps"
+                  :key="app.id"
+                  :id="'app_tab_' + app.id"
+                  @click.stop
+                  @click="onAppControlIconClick(index)"
+                  class="animate__animated shadow-lg min-w-12 min-h-12 max-h-12 max-w-12 rounded-full border-2 overflow-hidden transition duration-300 scroll-smooth"
+                  :class="[
+                    activeAppIndex === index
+                      ? 'border-white'
+                      : 'border-white/10',
+                    {
+                      '-translate-y-1 animate__jello':
+                        activeAppIndex === index && runningApps.length > 1
+                    }
+                  ]"
+                >
+                  <img :src="getUrl(app.manifest.icon)" />
+                </div>
+              </div>
+              <button
+                @click="onAppControlBtnClick(1)"
+                class="w-16 h-full rounded-r-full bg-error glass flex items-center justify-center"
+              ></button>
+            </div>
+          </div>
+        </Transition>
       </div>
     </div>
 
-    <!-- Top / Control Center Frame -->
-    <Transition name="slide">
-      <ControlCenter
-        v-if="showTopFrame"
-        :close="onControlCenterClose"
-        :showModule
-        :onAlertClick
-      />
-    </Transition>
-
-    <!-- Bottom Frame -->
-    <Transition name="slide-up">
-      <!-- Fullscreen frame -->
-      <div
-        v-if="showBottomFrame"
-        @click="closeBottomFrame"
-        class="fixed z-30 fscreen inset-0 flex flex-col items-center justify-end pb-5"
-      >
-        <!-- Background swipe layer / control panel depends -->
-        <div
-          class="absolute inset-0 h-[80%]"
-          v-swipe="onBottomFrameSwipe"
-        ></div>
-
-        <!-- App Title -->
-        <div
-          v-if="activeApp"
-          class="w-64 bg-white/10 rounded-t-lg text-white border-t truncate flex items-center justify-center opacity-80"
-          :class="isSudoApp ? 'border-error' : 'border-white'"
-        >
-          {{ activeApp.manifest.title }}
-        </div>
-        <!-- App switcher -->
-        <div @click.stop class="px-2 w-full flex items-center">
-          <button
-            @click="onBottomFrameLB"
-            class="w-16 h-full rounded-l-full bg-info glass"
-          ></button>
-          <div
-            @click.stop
-            class="flex-1 h-16 border border-white/20 bg-white/20 px-2 gap-1 flex items-center whitespace-nowrap overflow-x-auto scrollbar-hide"
-          >
-            <div
-              v-if="activeAppIndex < 0"
-              class="h-full w-full flex items-center justify-center text-white opacity-60"
-            >
-              No active apps
-            </div>
-            <!-- Running apps list -->
-            <div
-              v-for="(app, index) in runningApps"
-              :key="app.id"
-              :id="'app_tab_' + app.id"
-              @click.stop
-              @click="setActiveApp(index)"
-              class="min-w-12 min-h-12 max-h-12 max-w-12 rounded-full border-3 overflow-hidden transition duration-300 scroll-smooth"
-              :class="
-                activeAppIndex === index ? 'border-white' : 'border-white/10'
-              "
-            >
-              <img :src="getUrl(app.manifest.icon)" />
-            </div>
-          </div>
-          <button
-            @click="closeActiveApp"
-            class="w-16 h-full rounded-r-full bg-error glass flex items-center justify-center"
-          ></button>
-        </div>
-      </div>
-    </Transition>
-
     <!-- Navigation Bar -->
     <Transition name="nav-slide">
-      <Navbar
-        v-if="
-          uiConfig.state.navbar &&
-          !showBottomFrame &&
-          !showTopFrame &&
-          !currentModule &&
-          !showAppsMenu
-        "
-        :onNavbarClick
-        :theme="activeAppTheme"
-      />
+      <Navbar v-if="canShowNavbar" :onNavbarClick :theme="activeAppTheme" />
     </Transition>
 
-    <!-- Bottom bubble Triggers -->
+    <!-- Bottom bubble Triggers (fallback) -->
     <div
-      v-if="
-        uiConfig.state.iScreen &&
-        !uiConfig.state.stickBar &&
-        !uiConfig.state.navbar
-      "
+      v-if="canShowFallbackTrigger"
       class="absolute bottom-0 right-0 z-[150] bg-white/10 w-12 h-12 rounded-tl-full"
-      @click="onRightBubbleClick"
+      @click="onFallbackBubbleClick"
     ></div>
 
     <!-- swipe bubble stick -->
@@ -564,12 +490,13 @@
     </Transition>
 
     <!-- Modules -->
-    <div v-if="currentModule">
+    <div v-if="currentModule" class="fixed fscreen inset-0 z-[99]">
       <WallpaperChanger
         v-if="currentModule === 'WallpaperChanger'"
-        :close="hideModule"
+        :close="closeModule"
       />
-      <Settings v-else-if="currentModule === 'Settings'" :close="hideModule" />
+      <Settings v-else-if="currentModule === 'Settings'" :close="closeModule" />
+      <Logout v-else-if="currentModule === 'Logout'" :close="closeModule" />
     </div>
   </div>
 </template>
@@ -660,6 +587,26 @@
   .nav-slide-leave-from,
   .nav-slide-leave-to {
     transform: translateY(0);
+    opacity: 1;
+  }
+
+  .app-control-enter-active,
+  .app-control-leave-active {
+    transition:
+      max-height 200ms linear,
+      opacity 200ms ease;
+    transform-origin: bottom;
+  }
+
+  .app-control-enter-from,
+  .app-control-leave-to {
+    max-height: 0;
+    opacity: 0;
+  }
+
+  .app-control-enter-to,
+  .app-control-leave-from {
+    max-height: 160px;
     opacity: 1;
   }
 </style>

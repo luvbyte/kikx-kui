@@ -11,11 +11,11 @@
 <template>
   <div
     @click.stop
-    class="flex-1 flex flex-col rounded-2xl border-2 border-white/40 bg-white/20 shadow-2xl overflow-hidden"
+    class="flex-1 flex flex-col rounded-2xl border-2 border-white/60 bg-white/20 shadow-2xl overflow-hidden"
   >
     <!-- Header -->
     <div
-      class="px-4 py-3 border-b border-white/20 bg-blue-400/80 flex justify-between items-center"
+      class="px-2 py-3 border-b border-white/20 bg-blue-400/80 flex justify-between items-center"
     >
       <h1 class="text-white font-semibold tracking-wide">KIKX MUI</h1>
       <button @click="closePanel" class="btn btn-xs opacity-80">

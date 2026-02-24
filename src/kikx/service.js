@@ -1,17 +1,17 @@
 import { getUrl } from "./config";
-import { getClientID } from "./client";
 
-import { parseArgsAndKwargs } from "./utils"
+import { parseArgsAndKwargs } from "./utils";
 
 class Service {
-  constructor(name) {
+  constructor(name, client) {
     this.serviceName = name;
+    this.client = client;
     // Api url
     this.baseURL = getUrl(`/service/${this.serviceName}`);
   }
   async _request(endpoint, method, headers, body) {
     Object.assign(headers, {
-      "kikx-client-id": getClientID()
+      "kikx-client-id": this.client.clientID
     });
     return await fetch(`${this.baseURL}/${endpoint}`, {
       method,
@@ -68,8 +68,8 @@ class Service {
 }
 
 export class FileSystemService extends Service {
-  constructor() {
-    super("fs");
+  constructor(client) {
+    super("fs", client);
   }
 
   listFiles = (directory = "") =>
@@ -100,8 +100,8 @@ export class FileSystemService extends Service {
 }
 
 export class SystemService extends Service {
-  constructor() {
-    super("system");
+  constructor(client) {
+    super("system", client);
   }
   clientFunc = (name, config) =>
     this.request("client/func", "POST", {

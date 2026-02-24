@@ -1,6 +1,6 @@
 {
   "name": "kikx-mui",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "private": true,
   "type": "module",
   "engines": {
@@ -16,6 +16,7 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.1.17",
     "@vueuse/core": "^14.2.1",
+    "animate.css": "^4.1.1",
     "pinia": "^3.0.3",
     "tailwindcss": "^4.1.17",
     "vue": "^3.5.22",

@@ -1,7 +1,8 @@
 <script setup lang="ts">
   import { ref, onMounted } from "vue";
-  import { kikx, fetchAppsList } from "@/kikx";
-  import { getImageUrl } from "@/kikx/config";
+  import { fetchAppsList } from "@/kikx";
+
+  import AppIcon from "@/components/ui/AppIcon.vue";
 
   defineProps(["openApp"]);
 
@@ -11,27 +12,19 @@
     appsList.value = await fetchAppsList();
   });
 </script>
+
 <template>
-  <div class="grid grid-cols-4 gap-y-6 gap-x-4 p-4 place-items-center">
-    <div
-      @click.stop
-      v-for="app in appsList"
-      class="w-18 flex flex-col items-center"
-      v-longpress="() => openApp(app.name, true)"
-      @click="openApp(app.name)"
-    >
-      <img
-        draggable="false"
-        class="w-15 h-15 rounded-xl"
-        :src="getImageUrl(app.icon)"
+  <div class="absolute inset-0 select-none overflow-y-auto">
+    <div class="py-6 px-4 grid grid-cols-4 gap-4">
+      <AppIcon
+        v-for="app in appsList"
+        :key="app.name"
+        @click="openApp(app.name)"
+        v-longpress="() => openApp(app.name, true)"
+        :title="app.title"
+        :icon="app.icon"
+        class="aspect-square w-full flex items-center justify-center"
       />
-      <div class="text-white text-xs mt-1 text-center truncate w-full">
-        {{ app.title }}
-      </div>
     </div>
   </div>
 </template>
-
-<style>
-  
-</style>

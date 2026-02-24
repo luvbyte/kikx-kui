@@ -17,8 +17,8 @@ const appThemes = {
   warning: "bg-warning text-warning-content",
   info: "bg-info text-info-content",
 
-  glass: "bg-white/10 backdrop-blur-md text-white",
-  glassDark: "bg-black/30 backdrop-blur-md text-white",
+  glass: "bg-white/10 backdrop-blur-sm text-white",
+  glassDark: "bg-black/30 backdrop-blur-sm text-white",
 
   gradientBlue: "bg-gradient-to-r from-blue-500 to-indigo-600 text-white",
   gradientSunset: "bg-gradient-to-r from-orange-400 to-pink-500 text-white",

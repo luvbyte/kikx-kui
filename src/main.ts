@@ -7,6 +7,7 @@ import draggable from "@/directives/draggable.js";
 
 import vLongpress from "@/directives/longpress";
 
+import 'animate.css';
 import "./style.css";
 
 document.addEventListener("contextmenu", e => {

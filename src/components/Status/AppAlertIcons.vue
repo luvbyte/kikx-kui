@@ -18,7 +18,7 @@
     <div
       v-for="(alert, index) in recentIcons"
       :key="alert.uid"
-      class="relative"
+      class="relative animate__animated animate__fadeIn"
     >
       <img
         v-if="alert.icon"

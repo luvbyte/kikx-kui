@@ -1,5 +1,9 @@
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 
+function closeKeyboard() {
+  document.activeElement.blur();
+}
+
 export function useKeyboard() {
   const viewportHeight = ref(
     window.visualViewport?.height || window.innerHeight
@@ -32,5 +36,5 @@ export function useKeyboard() {
     return initialHeight.value - viewportHeight.value > 150;
   });
 
-  return { isKeyboardOpen };
+  return { isKeyboardOpen, closeKeyboard };
 }

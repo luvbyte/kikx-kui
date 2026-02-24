@@ -6,7 +6,9 @@
 
 <template>
   <iframe
-    :name="app.id"
+    :id="'app_' + app.title"
+    :name="app.name"
+    :title="app.title"
     :src="getUrl(app.url)"
     :sandbox="app.iframe.sandbox"
     :allowFullscreen="app.iframe.allowfullscreen"
@@ -14,5 +16,6 @@
     :loading="app.iframe.loading"
     scrolling="no"
     :referrerPolicy="app.iframe.referrerpolicy"
+    class="animate__animated animate__fadeIn"
   ></iframe>
 </template>
