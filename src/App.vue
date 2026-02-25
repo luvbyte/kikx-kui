@@ -474,7 +474,7 @@
 
     <!-- Navigation Bar -->
     <Transition name="nav-slide">
-      <Navbar v-if="canShowNavbar" :onNavbarClick :theme="activeAppTheme" />
+      <Navbar v-if="canShowNavbar" :onNavbarClick :isKeyboardOpen :closeKeyboard :theme="activeAppTheme" />
     </Transition>
 
     <!-- Bottom bubble Triggers (fallback) -->

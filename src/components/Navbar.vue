@@ -79,19 +79,23 @@
 </template>
 
 <script setup>
-  import { useKeyboard } from "@/composables/useKeyboard";
+import { ref, onMounted, onBeforeUnmount } from "vue";
+import { getAppTheme } from "@/kikx/style";
 
-  import { getAppTheme } from "@/kikx/style";
+defineProps(["onNavbarClick", "theme", "isKeyboardOpen", "closeKeyboard"]);
 
-  import { ref } from "vue";
+const show = ref(false);
+let timer = null;
 
-  defineProps(["onNavbarClick", "theme"]);
-
-  const { isKeyboardOpen, closeKeyboard } = useKeyboard();
-
-  const show = ref(false);
-
-  setTimeout(() => {
+onMounted(() => {
+  timer = setTimeout(() => {
     show.value = true;
   }, 300);
+});
+
+onBeforeUnmount(() => {
+  if (timer) {
+    clearTimeout(timer);
+  }
+});
 </script>

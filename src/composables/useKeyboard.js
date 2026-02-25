@@ -1,22 +1,19 @@
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 
-function closeKeyboard() {
-  document.activeElement.blur();
-}
-
 export function useKeyboard() {
-  const viewportHeight = ref(
-    window.visualViewport?.height || window.innerHeight
-  );
-  const initialHeight = ref(
-    window.visualViewport?.height || window.innerHeight
-  );
+  const initialHeight = ref(0);
+  const currentHeight = ref(0);
 
   const updateHeight = () => {
-    viewportHeight.value = window.visualViewport?.height || window.innerHeight;
+    const height = window.visualViewport?.height || window.innerHeight;
+    currentHeight.value = height;
   };
 
   onMounted(() => {
+    const height = window.visualViewport?.height || window.innerHeight;
+    initialHeight.value = height;
+    currentHeight.value = height;
+
     if (window.visualViewport) {
       window.visualViewport.addEventListener("resize", updateHeight);
     } else {
@@ -33,8 +30,18 @@ export function useKeyboard() {
   });
 
   const isKeyboardOpen = computed(() => {
-    return initialHeight.value - viewportHeight.value > 150;
+    const threshold = 100; // safer threshold
+    return initialHeight.value - currentHeight.value > threshold;
   });
 
-  return { isKeyboardOpen, closeKeyboard };
+  const closeKeyboard = () => {
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+  };
+
+  return {
+    isKeyboardOpen,
+    closeKeyboard
+  };
 }
