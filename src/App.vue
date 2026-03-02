@@ -359,7 +359,7 @@
       <!-- Running Apps Stack -->
       <div
         v-show="currentScreen === 'app' || currentScreen === 'app-control'"
-        class="absolute fscreen inset-0 z-20 flex flex-col items-center"
+        class="absolute fscreen inset-0 z-20 flex flex-col gap-1 items-center"
         :class="getAppTheme(activeAppTheme)"
       >
         <div
@@ -372,7 +372,6 @@
             class="fscreen overflow-hidden"
             v-show="activeAppIndex === index && activeAppIndex !== -1"
             :app="app"
-            :closeApp="() => closeApp(index)"
           />
         </div>
 
@@ -474,7 +473,13 @@
 
     <!-- Navigation Bar -->
     <Transition name="nav-slide">
-      <Navbar v-if="canShowNavbar" :onNavbarClick :isKeyboardOpen :closeKeyboard :theme="activeAppTheme" />
+      <Navbar
+        v-if="canShowNavbar"
+        :onNavbarClick
+        :isKeyboardOpen
+        :closeKeyboard
+        :theme="activeAppTheme"
+      />
     </Transition>
 
     <!-- Bottom bubble Triggers (fallback) -->
